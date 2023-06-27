@@ -1,5 +1,5 @@
 {
-  "name": "react-native-code-push",
+  "name": "@yocdev/react-native-code-push",
   "version": "8.0.2",
   "description": "React Native plugin for the CodePush service",
   "main": "CodePush.js",

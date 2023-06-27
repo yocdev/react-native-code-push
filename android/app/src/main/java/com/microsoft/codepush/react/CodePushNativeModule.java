@@ -46,11 +46,13 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
     private CodePushTelemetryManager mTelemetryManager;
     private CodePushUpdateManager mUpdateManager;
 
-    private  boolean _allowed = true;
-    private  boolean _restartInProgress = false;
-    private  ArrayList<Boolean> _restartQueue = new ArrayList<>();
+    private boolean _allowed = true;
+    private boolean _restartInProgress = false;
+    private ArrayList<Boolean> _restartQueue = new ArrayList<>();
 
-    public CodePushNativeModule(ReactApplicationContext reactContext, CodePush codePush, CodePushUpdateManager codePushUpdateManager, CodePushTelemetryManager codePushTelemetryManager, SettingsManager settingsManager) {
+    public CodePushNativeModule(ReactApplicationContext reactContext, CodePush codePush,
+            CodePushUpdateManager codePushUpdateManager, CodePushTelemetryManager codePushTelemetryManager,
+            SettingsManager settingsManager) {
         super(reactContext);
 
         mCodePush = codePush;
@@ -60,7 +62,9 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
 
         // Initialize module state while we have a reference to the current context.
         mBinaryContentsHash = CodePushUpdateUtils.getHashForBinaryContents(reactContext, mCodePush.isDebugMode());
-        mClientUniqueId = Settings.Secure.getString(reactContext.getContentResolver(), Settings.Secure.ANDROID_ID);
+        // mClientUniqueId =
+        // Settings.Secure.getString(reactContext.getContentResolver(),
+        // Settings.Secure.ANDROID_ID);
     }
 
     @Override
@@ -87,7 +91,8 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
     private void loadBundleLegacy() {
         final Activity currentActivity = getCurrentActivity();
         if (currentActivity == null) {
-            // The currentActivity can be null if it is backgrounded / destroyed, so we simply
+            // The currentActivity can be null if it is backgrounded / destroyed, so we
+            // simply
             // no-op to prevent any null pointer exceptions.
             return;
         }
@@ -101,13 +106,16 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
         });
     }
 
-    // Use reflection to find and set the appropriate fields on ReactInstanceManager. See #556 for a proposal for a less brittle way
+    // Use reflection to find and set the appropriate fields on
+    // ReactInstanceManager. See #556 for a proposal for a less brittle way
     // to approach this.
-    private void setJSBundle(ReactInstanceManager instanceManager, String latestJSBundleFile) throws IllegalAccessException {
+    private void setJSBundle(ReactInstanceManager instanceManager, String latestJSBundleFile)
+            throws IllegalAccessException {
         try {
             JSBundleLoader latestJSBundleLoader;
             if (latestJSBundleFile.toLowerCase().startsWith("assets://")) {
-                latestJSBundleLoader = JSBundleLoader.createAssetLoader(getReactApplicationContext(), latestJSBundleFile, false);
+                latestJSBundleLoader = JSBundleLoader.createAssetLoader(getReactApplicationContext(),
+                        latestJSBundleFile, false);
             } else {
                 latestJSBundleLoader = JSBundleLoader.createFileLoader(latestJSBundleFile);
             }
@@ -125,14 +133,14 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
         clearLifecycleEventListener();
         try {
             mCodePush.clearDebugCacheIfNeeded(resolveInstanceManager());
-        } catch(Exception e) {
+        } catch (Exception e) {
             // If we got error in out reflection we should clear debug cache anyway.
             mCodePush.clearDebugCacheIfNeeded(null);
         }
 
         try {
             // #1) Get the ReactInstanceManager instance, which is what includes the
-            //     logic to reload the current React context.
+            // logic to reload the current React context.
             final ReactInstanceManager instanceManager = resolveInstanceManager();
             if (instanceManager == null) {
                 return;
@@ -143,15 +151,16 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
             // #2) Update the locally stored JS bundle file path
             setJSBundle(instanceManager, latestJSBundleFile);
 
-            // #3) Get the context creation method and fire it on the UI thread (which RN enforces)
+            // #3) Get the context creation method and fire it on the UI thread (which RN
+            // enforces)
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 @Override
                 public void run() {
                     try {
-                        // We don't need to resetReactRootViews anymore 
+                        // We don't need to resetReactRootViews anymore
                         // due the issue https://github.com/facebook/react-native/issues/14533
                         // has been fixed in RN 0.46.0
-                        //resetReactRootViews(instanceManager);
+                        // resetReactRootViews(instanceManager);
 
                         instanceManager.recreateReactContextInBackground();
                         mCodePush.initializeUpdateAfterRestart();
@@ -166,18 +175,23 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
         } catch (Exception e) {
             // Our reflection logic failed somewhere
             // so fall back to restarting the Activity (if it exists)
-            CodePushUtils.log("Failed to load the bundle, falling back to restarting the Activity (if it exists). " + e.getMessage());
+            CodePushUtils.log("Failed to load the bundle, falling back to restarting the Activity (if it exists). "
+                    + e.getMessage());
             loadBundleLegacy();
         }
     }
 
-    // This workaround has been implemented in order to fix https://github.com/facebook/react-native/issues/14533
-    // resetReactRootViews allows to call recreateReactContextInBackground without any exceptions
-    // This fix also relates to https://github.com/microsoft/react-native-code-push/issues/878
-    private void resetReactRootViews(ReactInstanceManager instanceManager) throws NoSuchFieldException, IllegalAccessException {
+    // This workaround has been implemented in order to fix
+    // https://github.com/facebook/react-native/issues/14533
+    // resetReactRootViews allows to call recreateReactContextInBackground without
+    // any exceptions
+    // This fix also relates to
+    // https://github.com/microsoft/react-native-code-push/issues/878
+    private void resetReactRootViews(ReactInstanceManager instanceManager)
+            throws NoSuchFieldException, IllegalAccessException {
         Field mAttachedRootViewsField = instanceManager.getClass().getDeclaredField("mAttachedRootViews");
         mAttachedRootViewsField.setAccessible(true);
-        List<ReactRootView> mAttachedRootViews = (List<ReactRootView>)mAttachedRootViewsField.get(instanceManager);
+        List<ReactRootView> mAttachedRootViews = (List<ReactRootView>) mAttachedRootViewsField.get(instanceManager);
         for (ReactRootView reactRootView : mAttachedRootViews) {
             reactRootView.removeAllViews();
             reactRootView.setId(View.NO_ID);
@@ -193,7 +207,8 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
         }
     }
 
-    // Use reflection to find the ReactInstanceManager. See #556 for a proposal for a less brittle way to approach this.
+    // Use reflection to find the ReactInstanceManager. See #556 for a proposal for
+    // a less brittle way to approach this.
     private ReactInstanceManager resolveInstanceManager() throws NoSuchFieldException, IllegalAccessException {
         ReactInstanceManager instanceManager = CodePush.getReactInstanceManager();
         if (instanceManager != null) {
@@ -273,7 +288,7 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
         try {
             restartAppInternal(onlyIfUpdateIsPending);
             promise.resolve(null);
-        } catch(CodePushUnknownException e) {
+        } catch (CodePushUnknownException e) {
             CodePushUtils.log(e);
             promise.reject(e);
         }
@@ -286,54 +301,60 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
             protected Void doInBackground(Void... params) {
                 try {
                     JSONObject mutableUpdatePackage = CodePushUtils.convertReadableToJsonObject(updatePackage);
-                    CodePushUtils.setJSONValueForKey(mutableUpdatePackage, CodePushConstants.BINARY_MODIFIED_TIME_KEY, "" + mCodePush.getBinaryResourcesModifiedTime());
-                    mUpdateManager.downloadPackage(mutableUpdatePackage, mCodePush.getAssetsBundleFileName(), new DownloadProgressCallback() {
-                        private boolean hasScheduledNextFrame = false;
-                        private DownloadProgress latestDownloadProgress = null;
+                    CodePushUtils.setJSONValueForKey(mutableUpdatePackage, CodePushConstants.BINARY_MODIFIED_TIME_KEY,
+                            "" + mCodePush.getBinaryResourcesModifiedTime());
+                    mUpdateManager.downloadPackage(mutableUpdatePackage, mCodePush.getAssetsBundleFileName(),
+                            new DownloadProgressCallback() {
+                                private boolean hasScheduledNextFrame = false;
+                                private DownloadProgress latestDownloadProgress = null;
 
-                        @Override
-                        public void call(DownloadProgress downloadProgress) {
-                            if (!notifyProgress) {
-                                return;
-                            }
-
-                            latestDownloadProgress = downloadProgress;
-                            // If the download is completed, synchronously send the last event.
-                            if (latestDownloadProgress.isCompleted()) {
-                                dispatchDownloadProgressEvent();
-                                return;
-                            }
-
-                            if (hasScheduledNextFrame) {
-                                return;
-                            }
-
-                            hasScheduledNextFrame = true;
-                            getReactApplicationContext().runOnUiQueueThread(new Runnable() {
                                 @Override
-                                public void run() {
-                                    ReactChoreographer.getInstance().postFrameCallback(ReactChoreographer.CallbackType.TIMERS_EVENTS, new ChoreographerCompat.FrameCallback() {
-                                        @Override
-                                        public void doFrame(long frameTimeNanos) {
-                                            if (!latestDownloadProgress.isCompleted()) {
-                                                dispatchDownloadProgressEvent();
-                                            }
+                                public void call(DownloadProgress downloadProgress) {
+                                    if (!notifyProgress) {
+                                        return;
+                                    }
 
-                                            hasScheduledNextFrame = false;
+                                    latestDownloadProgress = downloadProgress;
+                                    // If the download is completed, synchronously send the last event.
+                                    if (latestDownloadProgress.isCompleted()) {
+                                        dispatchDownloadProgressEvent();
+                                        return;
+                                    }
+
+                                    if (hasScheduledNextFrame) {
+                                        return;
+                                    }
+
+                                    hasScheduledNextFrame = true;
+                                    getReactApplicationContext().runOnUiQueueThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            ReactChoreographer.getInstance().postFrameCallback(
+                                                    ReactChoreographer.CallbackType.TIMERS_EVENTS,
+                                                    new ChoreographerCompat.FrameCallback() {
+                                                        @Override
+                                                        public void doFrame(long frameTimeNanos) {
+                                                            if (!latestDownloadProgress.isCompleted()) {
+                                                                dispatchDownloadProgressEvent();
+                                                            }
+
+                                                            hasScheduledNextFrame = false;
+                                                        }
+                                                    });
                                         }
                                     });
                                 }
-                            });
-                        }
 
-                        public void dispatchDownloadProgressEvent() {
-                            getReactApplicationContext()
-                                    .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                                    .emit(CodePushConstants.DOWNLOAD_PROGRESS_EVENT_NAME, latestDownloadProgress.createWritableMap());
-                        }
-                    }, mCodePush.getPublicKey());
+                                public void dispatchDownloadProgressEvent() {
+                                    getReactApplicationContext()
+                                            .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                                            .emit(CodePushConstants.DOWNLOAD_PROGRESS_EVENT_NAME,
+                                                    latestDownloadProgress.createWritableMap());
+                                }
+                            }, mCodePush.getPublicKey());
 
-                    JSONObject newPackage = mUpdateManager.getPackage(CodePushUtils.tryGetString(updatePackage, CodePushConstants.PACKAGE_HASH_KEY));
+                    JSONObject newPackage = mUpdateManager
+                            .getPackage(CodePushUtils.tryGetString(updatePackage, CodePushConstants.PACKAGE_HASH_KEY));
                     promise.resolve(CodePushUtils.convertJsonObjectToWritable(newPackage));
                 } catch (CodePushInvalidUpdateException e) {
                     CodePushUtils.log(e);
@@ -354,7 +375,7 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void getConfiguration(Promise promise) {
         try {
-            WritableMap configMap =  Arguments.createMap();
+            WritableMap configMap = Arguments.createMap();
             configMap.putString("appVersion", mCodePush.getAppVersion());
             configMap.putString("clientUniqueId", mClientUniqueId);
             configMap.putString("deploymentKey", mCodePush.getDeploymentKey());
@@ -366,7 +387,7 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
             }
 
             promise.resolve(configMap);
-        } catch(CodePushUnknownException e) {
+        } catch (CodePushUnknownException e) {
             CodePushUtils.log(e);
             promise.reject(e);
         }
@@ -428,7 +449,7 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
                     CodePushUtils.log(e.getMessage());
                     clearUpdates();
                     promise.resolve(null);
-                } catch(CodePushUnknownException e) {
+                } catch (CodePushUnknownException e) {
                     CodePushUtils.log(e);
                     promise.reject(e);
                 }
@@ -451,28 +472,33 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
                         JSONArray failedUpdates = mSettingsManager.getFailedUpdates();
                         if (failedUpdates != null && failedUpdates.length() > 0) {
                             try {
-                                JSONObject lastFailedPackageJSON = failedUpdates.getJSONObject(failedUpdates.length() - 1);
-                                WritableMap lastFailedPackage = CodePushUtils.convertJsonObjectToWritable(lastFailedPackageJSON);
+                                JSONObject lastFailedPackageJSON = failedUpdates
+                                        .getJSONObject(failedUpdates.length() - 1);
+                                WritableMap lastFailedPackage = CodePushUtils
+                                        .convertJsonObjectToWritable(lastFailedPackageJSON);
                                 WritableMap failedStatusReport = mTelemetryManager.getRollbackReport(lastFailedPackage);
                                 if (failedStatusReport != null) {
                                     promise.resolve(failedStatusReport);
                                     return null;
                                 }
                             } catch (JSONException e) {
-                                throw new CodePushUnknownException("Unable to read failed updates information stored in SharedPreferences.", e);
+                                throw new CodePushUnknownException(
+                                        "Unable to read failed updates information stored in SharedPreferences.", e);
                             }
                         }
                     } else if (mCodePush.didUpdate()) {
                         JSONObject currentPackage = mUpdateManager.getCurrentPackage();
                         if (currentPackage != null) {
-                            WritableMap newPackageStatusReport = mTelemetryManager.getUpdateReport(CodePushUtils.convertJsonObjectToWritable(currentPackage));
+                            WritableMap newPackageStatusReport = mTelemetryManager
+                                    .getUpdateReport(CodePushUtils.convertJsonObjectToWritable(currentPackage));
                             if (newPackageStatusReport != null) {
                                 promise.resolve(newPackageStatusReport);
                                 return null;
                             }
                         }
                     } else if (mCodePush.isRunningBinaryVersion()) {
-                        WritableMap newAppVersionStatusReport = mTelemetryManager.getBinaryUpdateReport(mCodePush.getAppVersion());
+                        WritableMap newAppVersionStatusReport = mTelemetryManager
+                                .getBinaryUpdateReport(mCodePush.getAppVersion());
                         if (newAppVersionStatusReport != null) {
                             promise.resolve(newAppVersionStatusReport);
                             return null;
@@ -484,9 +510,9 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
                             return null;
                         }
                     }
-                    
+
                     promise.resolve("");
-                } catch(CodePushUnknownException e) {
+                } catch (CodePushUnknownException e) {
                     CodePushUtils.log(e);
                     promise.reject(e);
                 }
@@ -498,12 +524,14 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void installUpdate(final ReadableMap updatePackage, final int installMode, final int minimumBackgroundDuration, final Promise promise) {
+    public void installUpdate(final ReadableMap updatePackage, final int installMode,
+            final int minimumBackgroundDuration, final Promise promise) {
         AsyncTask<Void, Void, Void> asyncTask = new AsyncTask<Void, Void, Void>() {
             @Override
             protected Void doInBackground(Void... params) {
                 try {
-                    mUpdateManager.installPackage(CodePushUtils.convertReadableToJsonObject(updatePackage), mSettingsManager.isPendingUpdate(null));
+                    mUpdateManager.installPackage(CodePushUtils.convertReadableToJsonObject(updatePackage),
+                            mSettingsManager.isPendingUpdate(null));
 
                     String pendingHash = CodePushUtils.tryGetString(updatePackage, CodePushConstants.PACKAGE_HASH_KEY);
                     if (pendingHash == null) {
@@ -513,11 +541,11 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
                     }
 
                     if (installMode == CodePushInstallMode.ON_NEXT_RESUME.getValue() ||
-                        // We also add the resume listener if the installMode is IMMEDIATE, because
-                        // if the current activity is backgrounded, we want to reload the bundle when
-                        // it comes back into the foreground.
-                        installMode == CodePushInstallMode.IMMEDIATE.getValue() ||
-                        installMode == CodePushInstallMode.ON_NEXT_SUSPEND.getValue()) {
+                    // We also add the resume listener if the installMode is IMMEDIATE, because
+                    // if the current activity is backgrounded, we want to reload the bundle when
+                    // it comes back into the foreground.
+                            installMode == CodePushInstallMode.IMMEDIATE.getValue() ||
+                            installMode == CodePushInstallMode.ON_NEXT_SUSPEND.getValue()) {
 
                         // Store the minimum duration on the native module as an instance
                         // variable instead of relying on a closure below, so that any
@@ -543,7 +571,8 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
                                     // As of RN 36, the resume handler fires immediately if the app is in
                                     // the foreground, so explicitly wait for it to be backgrounded first
                                     if (lastPausedDate != null) {
-                                        long durationInBackground = (new Date().getTime() - lastPausedDate.getTime()) / 1000;
+                                        long durationInBackground = (new Date().getTime() - lastPausedDate.getTime())
+                                                / 1000;
                                         if (installMode == CodePushInstallMode.IMMEDIATE.getValue()
                                                 || durationInBackground >= CodePushNativeModule.this.mMinimumBackgroundDuration) {
                                             CodePushUtils.log("Loading bundle on resume");
@@ -558,8 +587,10 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
                                     // resumed, we can detect how long it was in the background.
                                     lastPausedDate = new Date();
 
-                                    if (installMode == CodePushInstallMode.ON_NEXT_SUSPEND.getValue() && mSettingsManager.isPendingUpdate(null)) {
-                                        appSuspendHandler.postDelayed(loadBundleRunnable, minimumBackgroundDuration * 1000);
+                                    if (installMode == CodePushInstallMode.ON_NEXT_SUSPEND.getValue()
+                                            && mSettingsManager.isPendingUpdate(null)) {
+                                        appSuspendHandler.postDelayed(loadBundleRunnable,
+                                                minimumBackgroundDuration * 1000);
                                     }
                                 }
 
@@ -573,7 +604,7 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
                     }
 
                     promise.resolve("");
-                } catch(CodePushUnknownException e) {
+                } catch (CodePushUnknownException e) {
                     CodePushUtils.log(e);
                     promise.reject(e);
                 }
@@ -629,7 +660,7 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
                     && packageHash.length() > 0
                     && packageHash.equals(mUpdateManager.getCurrentPackageHash());
             promise.resolve(isFirstRun);
-        } catch(CodePushUnknownException e) {
+        } catch (CodePushUnknownException e) {
             CodePushUtils.log(e);
             promise.reject(e);
         }
@@ -640,7 +671,7 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
         try {
             mSettingsManager.removePendingUpdate();
             promise.resolve("");
-        } catch(CodePushUnknownException e) {
+        } catch (CodePushUnknownException e) {
             CodePushUtils.log(e);
             promise.reject(e);
         }
@@ -650,7 +681,7 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
     public void recordStatusReported(ReadableMap statusReport) {
         try {
             mTelemetryManager.recordStatusReported(statusReport);
-        } catch(CodePushUnknownException e) {
+        } catch (CodePushUnknownException e) {
             CodePushUtils.log(e);
         }
     }
@@ -659,33 +690,38 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
     public void saveStatusReportForRetry(ReadableMap statusReport) {
         try {
             mTelemetryManager.saveStatusReportForRetry(statusReport);
-        } catch(CodePushUnknownException e) {
+        } catch (CodePushUnknownException e) {
             CodePushUtils.log(e);
         }
     }
 
     @ReactMethod
     // Replaces the current bundle with the one downloaded from removeBundleUrl.
-    // It is only to be used during tests. No-ops if the test configuration flag is not set.
+    // It is only to be used during tests. No-ops if the test configuration flag is
+    // not set.
     public void downloadAndReplaceCurrentBundle(String remoteBundleUrl) {
         try {
             if (mCodePush.isUsingTestConfiguration()) {
                 try {
-                    mUpdateManager.downloadAndReplaceCurrentBundle(remoteBundleUrl, mCodePush.getAssetsBundleFileName());
+                    mUpdateManager.downloadAndReplaceCurrentBundle(remoteBundleUrl,
+                            mCodePush.getAssetsBundleFileName());
                 } catch (IOException e) {
                     throw new CodePushUnknownException("Unable to replace current bundle", e);
                 }
             }
-        } catch(CodePushUnknownException | CodePushMalformedDataException e) {
+        } catch (CodePushUnknownException | CodePushMalformedDataException e) {
             CodePushUtils.log(e);
         }
     }
 
     /**
      * This method clears CodePush's downloaded updates.
-     * It is needed to switch to a different deployment if the current deployment is more recent.
-     * Note: we don’t recommend to use this method in scenarios other than that (CodePush will call
-     * this method automatically when needed in other cases) as it could lead to unpredictable
+     * It is needed to switch to a different deployment if the current deployment is
+     * more recent.
+     * Note: we don’t recommend to use this method in scenarios other than that
+     * (CodePush will call
+     * this method automatically when needed in other cases) as it could lead to
+     * unpredictable
      * behavior.
      */
     @ReactMethod
